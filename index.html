@@ -384,6 +384,16 @@ let currentSearch = '';
 let currentPhotoData = null;
 let editingId = null;
 let iaIngredients = [];
+const UNSPLASH_KEY = "V3c7Zg3PoT2RuQLQFStWKoAxnIiYIwD-da9xBqCvasc";
+
+async function fetchDishImage(dishName) {
+  try {
+    const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(dishName + ' food dish')}&per_page=1&client_id=${UNSPLASH_KEY}`);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) return data.results[0].urls.small;
+  } catch(e) {}
+  return null;
+}
 let iaTime = '< 30 min';
 let currentSuggestion = null;
 
@@ -678,6 +688,18 @@ function openIA() {
   openModal('iaModal');
 }
 
+function renderSuggestions(suggestions) {
+  document.getElementById('iaSuggestions').innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${suggestions.length} idées — clique pour voir la recette</div>
+    ${suggestions.map((s, i) => `
+      <div class="suggestion-card" id="sugg-card-${i}" onclick="openSuggestion(${i})" style="margin-bottom:10px">
+        <img class="sugg-img" src="" style="display:none;width:100%;height:140px;object-fit:cover;border-radius:10px;margin-bottom:10px">
+        <div class="suggestion-name">${s.name}</div>
+        <div class="suggestion-meta"><span>🌍 ${s.origin}</span><span>⏱ ${s.time}</span></div>
+        <div class="suggestion-desc">${s.description}</div>
+      </div>`).join('')}`;
+}
+
 async function generateSuggestions() {
   if (iaIngredients.length === 0) { alert('Ajoute au moins un ingrédient !'); return; }
   const mood = document.getElementById('iaMood').value.trim();
@@ -695,15 +717,21 @@ Sois créatif et international !`;
     });
     const suggestions = await res.json();
     if (suggestions.error) throw new Error(suggestions.error);
-    document.getElementById('iaSuggestions').innerHTML = `
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${suggestions.length} idées trouvées — clique pour voir la recette</div>
-      ${suggestions.map((s, i) => `
-        <div class="suggestion-card" onclick="openSuggestion(${i})" style="margin-bottom:10px" data-sugg='${JSON.stringify(s).replace(/'/g, "&#39;")}'>
-          <div class="suggestion-name">${s.name}</div>
-          <div class="suggestion-meta"><span>🌍 ${s.origin}</span><span>⏱ ${s.time}</span></div>
-          <div class="suggestion-desc">${s.description}</div>
-        </div>`).join('')}`;
     window._suggestions = suggestions;
+    // Afficher les cartes sans images d'abord
+    renderSuggestions(suggestions);
+    // Charger les images en arrière-plan
+    suggestions.forEach(async (s, i) => {
+      const imgUrl = await fetchDishImage(s.name);
+      if (imgUrl) {
+        window._suggestions[i].imgUrl = imgUrl;
+        const card = document.getElementById('sugg-card-' + i);
+        if (card) {
+          const img = card.querySelector('.sugg-img');
+          if (img) { img.src = imgUrl; img.style.display = 'block'; }
+        }
+      }
+    });
   } catch(e) { alert('Erreur IA, réessaie.'); document.getElementById('iaSuggestions').innerHTML = ''; }
   finally { document.getElementById('iaGenBtn').style.display = 'flex'; document.getElementById('iaLoading').style.display = 'none'; }
 }
