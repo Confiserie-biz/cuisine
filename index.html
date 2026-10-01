@@ -689,12 +689,12 @@ async function generateSuggestions() {
 Propose 4 plats/sauces/mélanges du monde entier que je peux faire. Réponds UNIQUEMENT en JSON:
 [{"name":"...","origin":"...","time":"...","description":"...","ingredients":["..."],"steps":["..."]}]
 Sois créatif et international !`;
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer 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" },
-      body: JSON.stringify({ model: "gpt-4o-mini", max_tokens: 2000, messages: [{ role: "user", content: prompt }] })
+    const res = await fetch("/api/frigo", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredients: iaIngredients, mood: document.getElementById('iaMood').value.trim(), time: iaTime })
     });
-    const data = await res.json();
-    const suggestions = JSON.parse(data.choices[0].message.content.replace(/\`\`\`json|\`\`\`/g, '').trim());
+    const suggestions = await res.json();
+    if (suggestions.error) throw new Error(suggestions.error);
     document.getElementById('iaSuggestions').innerHTML = `
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${suggestions.length} idées trouvées — clique pour voir la recette</div>
       ${suggestions.map((s, i) => `
