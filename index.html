@@ -594,7 +594,7 @@ async function generateRecette() {
   document.getElementById('aiGenBtn').style.display = 'none';
   document.getElementById('aiLoading').style.display = 'flex';
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: `Génère une recette pour : "${name || desc}". Réponds UNIQUEMENT en JSON:\n{"ingredients":["..."],"steps":["..."],"time":"XX min"}\nMax 8 ingrédients, 6 étapes.` }] })
     });
@@ -671,8 +671,10 @@ function openIA() {
   renderTags();
   document.getElementById('iaMood').value = '';
   document.getElementById('iaSuggestions').innerHTML = '';
-  document.getElementById('iaGenBtn').style.display = 'flex';
-  document.getElementById('iaLoading').style.display = 'none';
+  setTimeout(() => {
+    const el = document.getElementById('promptFrigo');
+    if (el) el.textContent = `J'ai ces ingrédients : ???. Temps max : ${iaTime}. Propose-moi 4 plats du monde entier avec nom, origine, temps, description, ingrédients et étapes.`;
+  }, 100);
   openModal('iaModal');
 }
 
@@ -687,12 +689,12 @@ async function generateSuggestions() {
 Propose 4 plats/sauces/mélanges du monde entier que je peux faire. Réponds UNIQUEMENT en JSON:
 [{"name":"...","origin":"...","time":"...","description":"...","ingredients":["..."],"steps":["..."]}]
 Sois créatif et international !`;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2000, messages: [{ role: "user", content: prompt }] })
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer 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" },
+      body: JSON.stringify({ model: "gpt-4o-mini", max_tokens: 2000, messages: [{ role: "user", content: prompt }] })
     });
     const data = await res.json();
-    const suggestions = JSON.parse(data.content[0].text.replace(/\`\`\`json|\`\`\`/g, '').trim());
+    const suggestions = JSON.parse(data.choices[0].message.content.replace(/\`\`\`json|\`\`\`/g, '').trim());
     document.getElementById('iaSuggestions').innerHTML = `
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${suggestions.length} idées trouvées — clique pour voir la recette</div>
       ${suggestions.map((s, i) => `
@@ -736,6 +738,22 @@ function saveSuggestion() {
   recettes.unshift({ id: Date.now(), name: s.name, cat: 'Plat', time: s.time, emoji: '🍽️', photo: null, ingredients: s.ingredients, steps: s.steps });
   saveData(); closeModal('suggModal'); closeModal('iaModal'); renderGallery();
   alert('Recette enregistrée !');
+}
+
+// ====== PROMPTS CLAUDE ======
+function copyPromptRecette() {
+  const name = document.getElementById('recipeName').value.trim();
+  const desc = document.getElementById('recipeDesc').value.trim();
+  const cat = document.getElementById('recipeCat').value;
+  const time = document.getElementById('recipeTime').value.trim();
+  const prompt = `Génère une recette de ${cat.toLowerCase()} pour : "${name || desc || '???'}"${time ? `, en moins de ${time}` : ''}. Donne-moi les ingrédients (un par ligne) et les étapes de préparation (une par ligne). Sois précis et pratique.`;
+  navigator.clipboard.writeText(prompt).then(() => alert('Prompt copié ! Colle-le sur claude.ai 🤖'));
+}
+
+function copyPromptFrigo() {
+  const mood = document.getElementById('iaMood').value.trim();
+  const prompt = `J'ai ces ingrédients dans mon frigo : ${iaIngredients.join(', ') || '???'}.${mood ? ` Je veux quelque chose de : ${mood}.` : ''} Temps max : ${iaTime}. Propose-moi 4 plats ou sauces du monde entier que je peux faire. Pour chacun : le nom, l'origine, le temps de préparation, une courte description, les ingrédients et les étapes.`;
+  navigator.clipboard.writeText(prompt).then(() => alert('Prompt copié ! Colle-le sur claude.ai 🤖'));
 }
 
 // ====== MODALS ======
