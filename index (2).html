@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Mes Recettes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --text: #f0f0f0;
+    --text2: #888;
+    --accent: #e8c547;
+    --radius: 16px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
+
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,15,15,0.92); backdrop-filter: blur(12px);
+    padding: calc(var(--safe-top) + 14px) 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--surface2); border: none; color: var(--text);
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  .tabs {
+    display: flex; gap: 8px; padding: 14px 20px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0; padding: 8px 18px; border-radius: 100px;
+    background: var(--surface2); border: none; color: var(--text2);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .tab.active { background: var(--accent); color: #000; }
+
+  .search-wrap { padding: 0 20px 14px; }
+  .search-input {
+    width: 100%; padding: 12px 16px; border-radius: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
+  }
+  .search-input::placeholder { color: var(--text2); }
+
+  .gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 100px; }
+  .card {
+    border-radius: var(--radius); overflow: hidden;
+    background: var(--surface); cursor: pointer; transition: transform 0.15s; position: relative;
+  }
+  .card:active { transform: scale(0.97); }
+  .card-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: var(--surface2); }
+  .card-img-placeholder {
+    width: 100%; aspect-ratio: 3/4; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center; font-size: 40px;
+  }
+  .card-info { padding: 10px 12px 12px; }
+  .card-name { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .card-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .card-cat {
+    font-size: 11px; color: var(--accent); font-weight: 500;
+    background: rgba(232,197,71,0.12); padding: 2px 8px; border-radius: 100px;
+  }
+  .card-time { font-size: 11px; color: var(--text2); }
+
+  .empty { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text2); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  .fab {
+    position: fixed; bottom: calc(var(--safe-bottom) + 24px); right: 24px;
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--accent); border: none; color: #000;
+    font-size: 26px; cursor: pointer; z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(232,197,71,0.4);
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: none; align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    width: 100%; max-height: 92vh; background: var(--surface);
+    border-radius: 24px 24px 0 0; overflow-y: auto;
+    padding-bottom: calc(var(--safe-bottom) + 24px);
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 14px auto 0; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 0;
+  }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; }
+  .close-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--surface2);
+    border: none; color: var(--text); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* DETAIL */
+  .detail-img { width: calc(100% - 32px); margin: 16px; border-radius: 16px; aspect-ratio: 3/4; object-fit: cover; display: block; background: var(--surface2); }
+  .detail-img-placeholder { width: calc(100% - 32px); margin: 16px; border-radius: 16px; aspect-ratio: 3/4; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 64px; }
+  .detail-body { padding: 0 20px; }
+  .detail-cat { font-size: 12px; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+  .detail-name { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 8px; }
+  .detail-time { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  .ingredients-list { list-style: none; }
+  .ingredient-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .ingredient-item:last-child { border-bottom: none; }
+  .ing-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+  .ing-check.checked { background: var(--accent); border-color: var(--accent); color: #000; font-size: 13px; }
+  .steps-list { list-style: none; }
+  .step-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.5; }
+  .step-item:last-child { border-bottom: none; }
+  .step-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #000; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+  .detail-actions { display: flex; gap: 10px; margin-top: 20px; margin-bottom: 8px; }
+  .btn-primary { flex: 1; padding: 14px; background: var(--accent); color: #000; border: none; border-radius: 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-secondary { padding: 14px 16px; background: var(--surface2); color: var(--text); border: none; border-radius: 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; }
+  .btn-danger { padding: 14px 16px; background: rgba(255,60,60,0.15); color: #ff6b6b; border: none; border-radius: 14px; font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; }
+
+  /* FORMS */
+  .add-form { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .form-label { font-size: 12px; color: var(--text2); font-weight: 600; margin-bottom: 6px; display: block; }
+  .form-input, .form-textarea, .form-select {
+    width: 100%; padding: 12px 14px; border-radius: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; resize: none;
+  }
+  .form-select option { background: var(--surface2); }
+  .form-textarea { min-height: 100px; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row > div { flex: 1; }
+
+  .photo-upload {
+    width: 100%; aspect-ratio: 3/4; border-radius: 14px;
+    background: var(--surface2); border: 2px dashed var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; cursor: pointer; color: var(--text2); font-size: 14px; position: relative; overflow: hidden;
+  }
+  .photo-upload img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .photo-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo-icon { font-size: 32px; }
+
+  .ai-btn {
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: linear-gradient(135deg, #2a2a2a, #1f1f1f);
+    border: 1px solid var(--border); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ai-loading { display: none; align-items: center; gap: 8px; color: var(--text2); font-size: 14px; justify-content: center; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-save { width: 100%; padding: 16px; border-radius: 14px; background: var(--accent); color: #000; border: none; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* COURSES */
+  .courses-list { padding: 12px 20px; }
+  .course-section-title { font-size: 12px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 0 6px; }
+  .course-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .course-item:last-child { border-bottom: none; }
+  .course-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+  .course-check.done { background: var(--accent); border-color: var(--accent); color: #000; font-size: 13px; }
+  .course-text.done { text-decoration: line-through; color: var(--text2); }
+
+  /* IA FRIGO */
+  .ia-form { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .tag-input-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; min-height: 80px; align-content: flex-start; }
+  .tag { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); padding: 5px 10px; border-radius: 100px; font-size: 13px; }
+  .tag-remove { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+  .tag-input { background: none; border: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; min-width: 120px; }
+  .time-options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .time-opt { padding: 8px 14px; border-radius: 100px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+  .time-opt.selected { border-color: var(--accent); color: var(--accent); }
+
+  .suggestion-card {
+    background: var(--surface2); border-radius: 14px; padding: 16px;
+    border: 1px solid var(--border); cursor: pointer; transition: border-color 0.15s;
+  }
+  .suggestion-card:active { border-color: var(--accent); }
+  .suggestion-name { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .suggestion-meta { font-size: 12px; color: var(--text2); display: flex; gap: 10px; }
+  .suggestion-desc { font-size: 13px; color: var(--text2); margin-top: 8px; line-height: 1.4; }
+
+  /* SHARE */
+  .share-options { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .share-btn { padding: 14px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🍽️ Mes Recettes</div>
+  <div class="header-actions">
+    <button class="icon-btn" onclick="openIA()" title="IA Frigo">🤖</button>
+    <button class="icon-btn" onclick="openCourses()" title="Liste de courses">🛒</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="filterCat('Tout', this)">Tout</button>
+  <button class="tab" onclick="filterCat('Plat', this)">🍛 Plats</button>
+  <button class="tab" onclick="filterCat('Épices', this)">🌶️ Épices</button>
+  <button class="tab" onclick="filterCat('Sauce', this)">🥫 Sauces</button>
+  <button class="tab" onclick="filterCat('Dessert', this)">🍰 Desserts</button>
+</div>
+
+<div class="search-wrap">
+  <input class="search-input" type="search" placeholder="Rechercher..." oninput="searchRecettes(this.value)">
+</div>
+
+<div class="gallery" id="gallery"></div>
+<button class="fab" onclick="openAdd()">＋</button>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="detailTitle"></span>
+      <button class="close-btn" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="addModalTitle">Nouvelle recette</span>
+      <button class="close-btn" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="add-form">
+      <div>
+        <label class="form-label">Photo du plat</label>
+        <div class="photo-upload" id="photoUpload">
+          <span class="photo-icon">📷</span>
+          <span>Appuie pour ajouter une photo</span>
+          <input type="file" accept="image/*" onchange="handlePhoto(this)">
+          <img id="photoPreview" style="display:none">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Nom de la recette</label>
+        <input class="form-input" id="recipeName" placeholder="Ex: Poulet yassa...">
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Catégorie</label>
+          <select class="form-select" id="recipeCat">
+            <option value="Plat">🍛 Plat</option>
+            <option value="Épices">🌶️ Épices</option>
+            <option value="Sauce">🥫 Sauce</option>
+            <option value="Dessert">🍰 Dessert</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Temps de prépa</label>
+          <input class="form-input" id="recipeTime" placeholder="Ex: 30 min">
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Décris le plat (l'IA génère la recette)</label>
+        <textarea class="form-textarea" id="recipeDesc" placeholder="Ex: Poulet mariné au citron, typique sénégalais..."></textarea>
+      </div>
+      <button class="ai-btn" id="aiGenBtn" onclick="generateRecette()">✨ Générer avec l'IA</button>
+      <div class="ai-loading" id="aiLoading"><div class="spinner"></div><span>Génération en cours...</span></div>
+      <div id="generatedPreview" style="display:none">
+        <div>
+          <label class="form-label">Ingrédients (un par ligne)</label>
+          <textarea class="form-textarea" id="recipeIngredients"></textarea>
+        </div>
+        <div style="margin-top:14px">
+          <label class="form-label">Étapes (une par ligne)</label>
+          <textarea class="form-textarea" id="recipeSteps" style="min-height:150px"></textarea>
+        </div>
+      </div>
+      <button class="btn-save" id="saveBtn" onclick="saveRecette()" disabled>Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- COURSES MODAL -->
+<div class="modal-overlay" id="coursesModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🛒 Liste de courses</span>
+      <button class="close-btn" onclick="closeModal('coursesModal')">✕</button>
+    </div>
+    <div id="coursesList" class="courses-list"></div>
+  </div>
+</div>
+
+<!-- IA FRIGO MODAL -->
+<div class="modal-overlay" id="iaModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🤖 Qu'est-ce que je cuisine ?</span>
+      <button class="close-btn" onclick="closeModal('iaModal')">✕</button>
+    </div>
+    <div class="ia-form">
+      <div>
+        <label class="form-label">Mes ingrédients du frigo</label>
+        <div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagInput').focus()">
+          <input class="tag-input" id="tagInput" placeholder="Ajoute un ingrédient..." onkeydown="handleTagInput(event)">
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:6px">Appuie sur Entrée ou virgule pour ajouter</div>
+      </div>
+      <div>
+        <label class="form-label">Une envie particulière ? (optionnel)</label>
+        <input class="form-input" id="iaMood" placeholder="Ex: léger, copieux, épicé, rapide...">
+      </div>
+      <div>
+        <label class="form-label">Temps disponible</label>
+        <div class="time-options">
+          <button class="time-opt selected" onclick="selectTime(this, '< 30 min')">⚡ < 30 min</button>
+          <button class="time-opt" onclick="selectTime(this, '< 1h')">🕐 < 1h</button>
+          <button class="time-opt" onclick="selectTime(this, '< 2h')">🕑 < 2h</button>
+          <button class="time-opt" onclick="selectTime(this, 'Peu importe')">∞ Peu importe</button>
+        </div>
+      </div>
+      <button class="ai-btn" id="iaGenBtn" onclick="generateSuggestions()">✨ Trouver des idées</button>
+      <div class="ai-loading" id="iaLoading"><div class="spinner"></div><span>Je cherche des idées...</span></div>
+      <div id="iaSuggestions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SUGGESTION DETAIL MODAL -->
+<div class="modal-overlay" id="suggModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="suggTitle"></span>
+      <button class="close-btn" onclick="closeModal('suggModal')">✕</button>
+    </div>
+    <div id="suggContent"></div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">Partager la recette</span>
+      <button class="close-btn" onclick="closeModal('shareModal')">✕</button>
+    </div>
+    <div class="share-options" id="shareOptions"></div>
+  </div>
+</div>
+
+<script>
+// ====== STATE ======
+let recettes = JSON.parse(localStorage.getItem('recettes') || '[]');
+let coursesItems = JSON.parse(localStorage.getItem('courses') || '[]');
+let currentCat = 'Tout';
+let currentSearch = '';
+let currentPhotoData = null;
+let editingId = null;
+let iaIngredients = [];
+let iaTime = '< 30 min';
+let currentSuggestion = null;
+
+if (recettes.length === 0) {
+  recettes = [
+    { id: 1, name: "Poulet Yassa", cat: "Plat", emoji: "🍗", photo: null, time: "1h30",
+      ingredients: ["1 poulet entier", "4 oignons", "2 citrons", "Huile d'olive", "Moutarde", "Sel, poivre"],
+      steps: ["Mariner le poulet avec oignons, citron, moutarde 2h", "Faire revenir les oignons à feu doux", "Griller le poulet puis le finir dans la sauce", "Servir avec du riz blanc"] },
+    { id: 2, name: "Ras el Hanout", cat: "Épices", emoji: "🌶️", photo: null, time: "10 min",
+      ingredients: ["2 c. cumin", "2 c. coriandre", "1 c. cannelle", "1 c. gingembre", "1 c. curcuma", "½ c. poivre noir"],
+      steps: ["Torréfier légèrement les épices à sec", "Laisser refroidir", "Moudre finement au mortier", "Conserver en pot hermétique"] },
+    { id: 3, name: "Sauce Harissa", cat: "Sauce", emoji: "🥫", photo: null, time: "20 min",
+      ingredients: ["10 piments rouges séchés", "4 gousses d'ail", "1 c. cumin", "Huile d'olive", "Sel"],
+      steps: ["Réhydrater les piments 30min", "Mixer avec l'ail", "Ajouter épices et huile", "Mixer jusqu'à texture lisse"] }
+  ];
+  localStorage.setItem('recettes', JSON.stringify(recettes));
+}
+
+function saveData() {
+  localStorage.setItem('recettes', JSON.stringify(recettes));
+  localStorage.setItem('courses', JSON.stringify(coursesItems));
+}
+
+// ====== GALLERY ======
+function renderGallery() {
+  const gallery = document.getElementById('gallery');
+  let filtered = recettes;
+  if (currentCat !== 'Tout') filtered = filtered.filter(r => r.cat === currentCat);
+  if (currentSearch) filtered = filtered.filter(r => r.name.toLowerCase().includes(currentSearch.toLowerCase()));
+
+  if (filtered.length === 0) {
+    gallery.innerHTML = `<div class="empty"><div class="empty-icon">🍽️</div><div style="font-size:15px;color:var(--text2)">Aucune recette<br>Appuie sur + pour en ajouter</div></div>`;
+    return;
+  }
+  gallery.innerHTML = filtered.map(r => `
+    <div class="card" onclick="openDetail(${r.id})">
+      ${r.photo ? `<img class="card-img" src="${r.photo}" alt="${r.name}">` : `<div class="card-img-placeholder">${r.emoji || '🍽️'}</div>`}
+      <div class="card-info">
+        <div class="card-name">${r.name}</div>
+        <div class="card-meta">
+          <span class="card-cat">${r.cat}</span>
+          ${r.time ? `<span class="card-time">⏱ ${r.time}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderGallery();
+}
+
+function searchRecettes(q) { currentSearch = q; renderGallery(); }
+
+// ====== DETAIL ======
+function openDetail(id) {
+  const r = recettes.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('detailTitle').textContent = r.name;
+  document.getElementById('detailContent').innerHTML = `
+    ${r.photo ? `<img class="detail-img" src="${r.photo}" alt="${r.name}">` : `<div class="detail-img-placeholder">${r.emoji || '🍽️'}</div>`}
+    <div class="detail-body">
+      <div class="detail-cat">${r.cat}</div>
+      <div class="detail-name">${r.name}</div>
+      ${r.time ? `<div class="detail-time">⏱ ${r.time}</div>` : ''}
+      <div class="section-title">Ingrédients</div>
+      <ul class="ingredients-list">
+        ${r.ingredients.map(ing => `
+          <li class="ingredient-item">
+            <div class="ing-check" onclick="this.classList.toggle('checked'); this.textContent = this.classList.contains('checked') ? '✓' : '';"></div>
+            <span>${ing}</span>
+          </li>`).join('')}
+      </ul>
+      <div class="section-title">Préparation</div>
+      <ol class="steps-list">
+        ${r.steps.map((step, i) => `
+          <li class="step-item"><span class="step-num">${i+1}</span><span>${step}</span></li>`).join('')}
+      </ol>
+      <div class="detail-actions">
+        <button class="btn-primary" onclick="addToCourses(${id}); closeModal('detailModal')">🛒 Courses</button>
+        <button class="btn-secondary" onclick="openShare(${id})">↗ Partager</button>
+        <button class="btn-secondary" onclick="closeModal('detailModal'); openEdit(${id})">✏️</button>
+        <button class="btn-danger" onclick="deleteRecette(${id})">🗑</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>`;
+  openModal('detailModal');
+}
+
+function deleteRecette(id) {
+  if (!confirm('Supprimer cette recette ?')) return;
+  recettes = recettes.filter(r => r.id !== id);
+  saveData();
+  closeModal('detailModal');
+  renderGallery();
+}
+
+// ====== SHARE ======
+function openShare(id) {
+  const r = recettes.find(x => x.id === id);
+  if (!r) return;
+  const text = `🍽️ ${r.name}\n${r.time ? '⏱ ' + r.time + '\n' : ''}\n📝 Ingrédients:\n${r.ingredients.map(i => '• ' + i).join('\n')}\n\n👨‍🍳 Préparation:\n${r.steps.map((s, i) => (i+1) + '. ' + s).join('\n')}`;
+
+  document.getElementById('shareOptions').innerHTML = `
+    <button class="share-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(text)}).then(()=>alert('Copié !'))">📋 Copier la recette</button>
+    ${navigator.share ? `<button class="share-btn" onclick="navigator.share({title:'${r.name}', text:${JSON.stringify(text)}})">↗ Partager via...</button>` : ''}
+  `;
+  closeModal('detailModal');
+  openModal('shareModal');
+}
+
+// ====== COURSES ======
+function addToCourses(id) {
+  const r = recettes.find(x => x.id === id);
+  if (!r) return;
+  r.ingredients.forEach(ing => {
+    if (!coursesItems.find(c => c.text === ing)) coursesItems.push({ text: ing, done: false });
+  });
+  saveData();
+}
+
+function openCourses() {
+  const list = document.getElementById('coursesList');
+  if (coursesItems.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><div style="font-size:14px;color:var(--text2)">Liste vide — ouvre une recette et appuie sur Courses</div></div>`;
+  } else {
+    const todo = coursesItems.filter(c => !c.done);
+    const done = coursesItems.filter(c => c.done);
+    list.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;padding:8px 0 4px">
+        <button onclick="coursesItems=[];saveData();openCourses()" style="background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer">Tout effacer</button>
+      </div>
+      ${todo.map((item, i) => courseItemHTML(item, coursesItems.indexOf(item))).join('')}
+      ${done.length ? `<div class="course-section-title">Déjà dans le panier</div>${done.map(item => courseItemHTML(item, coursesItems.indexOf(item))).join('')}` : ''}
+    `;
+  }
+  openModal('coursesModal');
+}
+
+function courseItemHTML(item, i) {
+  return `<div class="course-item">
+    <div class="course-check ${item.done ? 'done' : ''}" onclick="toggleCourse(${i})">${item.done ? '✓' : ''}</div>
+    <span class="course-text ${item.done ? 'done' : ''}">${item.text}</span>
+  </div>`;
+}
+
+function toggleCourse(i) { coursesItems[i].done = !coursesItems[i].done; saveData(); openCourses(); }
+
+// ====== ADD / EDIT ======
+function openAdd() {
+  editingId = null;
+  currentPhotoData = null;
+  document.getElementById('addModalTitle').textContent = 'Nouvelle recette';
+  document.getElementById('recipeName').value = '';
+  document.getElementById('recipeDesc').value = '';
+  document.getElementById('recipeTime').value = '';
+  document.getElementById('recipeIngredients').value = '';
+  document.getElementById('recipeSteps').value = '';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('generatedPreview').style.display = 'none';
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('aiGenBtn').style.display = 'flex';
+  document.getElementById('aiLoading').style.display = 'none';
+  openModal('addModal');
+}
+
+function openEdit(id) {
+  const r = recettes.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  currentPhotoData = r.photo;
+  document.getElementById('addModalTitle').textContent = 'Modifier la recette';
+  document.getElementById('recipeName').value = r.name;
+  document.getElementById('recipeTime').value = r.time || '';
+  document.getElementById('recipeCat').value = r.cat;
+  document.getElementById('recipeDesc').value = '';
+  document.getElementById('recipeIngredients').value = r.ingredients.join('\n');
+  document.getElementById('recipeSteps').value = r.steps.join('\n');
+  const preview = document.getElementById('photoPreview');
+  if (r.photo) { preview.src = r.photo; preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; }
+  document.getElementById('generatedPreview').style.display = 'block';
+  document.getElementById('saveBtn').disabled = false;
+  document.getElementById('aiGenBtn').style.display = 'flex';
+  document.getElementById('aiLoading').style.display = 'none';
+  openModal('addModal');
+}
+
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    currentPhotoData = e.target.result;
+    const preview = document.getElementById('photoPreview');
+    preview.src = currentPhotoData; preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function generateRecette() {
+  const desc = document.getElementById('recipeDesc').value.trim();
+  const name = document.getElementById('recipeName').value.trim();
+  if (!desc && !name) { alert('Décris le plat ou donne un nom !'); return; }
+  document.getElementById('aiGenBtn').style.display = 'none';
+  document.getElementById('aiLoading').style.display = 'flex';
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: `Génère une recette pour : "${name || desc}". Réponds UNIQUEMENT en JSON:\n{"ingredients":["..."],"steps":["..."],"time":"XX min"}\nMax 8 ingrédients, 6 étapes.` }] })
+    });
+    const data = await res.json();
+    const json = JSON.parse(data.content[0].text.replace(/\`\`\`json|\`\`\`/g, '').trim());
+    document.getElementById('recipeIngredients').value = json.ingredients.join('\n');
+    document.getElementById('recipeSteps').value = json.steps.join('\n');
+    if (json.time && !document.getElementById('recipeTime').value) document.getElementById('recipeTime').value = json.time;
+    document.getElementById('generatedPreview').style.display = 'block';
+    document.getElementById('saveBtn').disabled = false;
+  } catch(e) { alert('Erreur IA, réessaie.'); }
+  finally { document.getElementById('aiGenBtn').style.display = 'flex'; document.getElementById('aiLoading').style.display = 'none'; }
+}
+
+function saveRecette() {
+  const name = document.getElementById('recipeName').value.trim();
+  const cat = document.getElementById('recipeCat').value;
+  const time = document.getElementById('recipeTime').value.trim();
+  const ingredients = document.getElementById('recipeIngredients').value.split('\n').filter(l => l.trim());
+  const steps = document.getElementById('recipeSteps').value.split('\n').filter(l => l.trim());
+  if (!name || !ingredients.length || !steps.length) { alert('Remplis le nom, ingrédients et étapes !'); return; }
+  const emojis = { 'Plat': '🍛', 'Épices': '🌶️', 'Sauce': '🥫', 'Dessert': '🍰' };
+  if (editingId) {
+    const idx = recettes.findIndex(r => r.id === editingId);
+    recettes[idx] = { ...recettes[idx], name, cat, time, ingredients, steps, photo: currentPhotoData, emoji: emojis[cat] };
+  } else {
+    recettes.unshift({ id: Date.now(), name, cat, time, emoji: emojis[cat], photo: currentPhotoData, ingredients, steps });
+  }
+  saveData(); closeModal('addModal'); renderGallery();
+}
+
+// ====== IA FRIGO ======
+function handleTagInput(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = document.getElementById('tagInput').value.trim().replace(/,$/, '');
+    if (val) addTag(val);
+    document.getElementById('tagInput').value = '';
+  }
+}
+
+function addTag(val) {
+  if (iaIngredients.includes(val)) return;
+  iaIngredients.push(val);
+  renderTags();
+}
+
+function removeTag(val) {
+  iaIngredients = iaIngredients.filter(i => i !== val);
+  renderTags();
+}
+
+function renderTags() {
+  const wrap = document.getElementById('tagWrap');
+  const input = document.getElementById('tagInput');
+  wrap.innerHTML = '';
+  iaIngredients.forEach(ing => {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.innerHTML = `<span>${ing}</span><button class="tag-remove" onclick="removeTag('${ing}')">✕</button>`;
+    wrap.appendChild(tag);
+  });
+  wrap.appendChild(input);
+}
+
+function selectTime(btn, time) {
+  iaTime = time;
+  document.querySelectorAll('.time-opt').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function openIA() {
+  iaIngredients = [];
+  renderTags();
+  document.getElementById('iaMood').value = '';
+  document.getElementById('iaSuggestions').innerHTML = '';
+  setTimeout(() => {
+    const el = document.getElementById('promptFrigo');
+    if (el) el.textContent = `J'ai ces ingrédients : ???. Temps max : ${iaTime}. Propose-moi 4 plats du monde entier avec nom, origine, temps, description, ingrédients et étapes.`;
+  }, 100);
+  openModal('iaModal');
+}
+
+async function generateSuggestions() {
+  if (iaIngredients.length === 0) { alert('Ajoute au moins un ingrédient !'); return; }
+  const mood = document.getElementById('iaMood').value.trim();
+  document.getElementById('iaGenBtn').style.display = 'none';
+  document.getElementById('iaLoading').style.display = 'flex';
+  document.getElementById('iaSuggestions').innerHTML = '';
+  try {
+    const prompt = `Tu es un chef du monde entier. J'ai ces ingrédients : ${iaIngredients.join(', ')}.${mood ? ` Je veux quelque chose de : ${mood}.` : ''} Temps max : ${iaTime}.
+Propose 4 plats/sauces/mélanges du monde entier que je peux faire. Réponds UNIQUEMENT en JSON:
+[{"name":"...","origin":"...","time":"...","description":"...","ingredients":["..."],"steps":["..."]}]
+Sois créatif et international !`;
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer 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" },
+      body: JSON.stringify({ model: "gpt-4o-mini", max_tokens: 2000, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    const suggestions = JSON.parse(data.choices[0].message.content.replace(/\`\`\`json|\`\`\`/g, '').trim());
+    document.getElementById('iaSuggestions').innerHTML = `
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">${suggestions.length} idées trouvées — clique pour voir la recette</div>
+      ${suggestions.map((s, i) => `
+        <div class="suggestion-card" onclick="openSuggestion(${i})" style="margin-bottom:10px" data-sugg='${JSON.stringify(s).replace(/'/g, "&#39;")}'>
+          <div class="suggestion-name">${s.name}</div>
+          <div class="suggestion-meta"><span>🌍 ${s.origin}</span><span>⏱ ${s.time}</span></div>
+          <div class="suggestion-desc">${s.description}</div>
+        </div>`).join('')}`;
+    window._suggestions = suggestions;
+  } catch(e) { alert('Erreur IA, réessaie.'); document.getElementById('iaSuggestions').innerHTML = ''; }
+  finally { document.getElementById('iaGenBtn').style.display = 'flex'; document.getElementById('iaLoading').style.display = 'none'; }
+}
+
+function openSuggestion(i) {
+  const s = window._suggestions[i];
+  currentSuggestion = s;
+  document.getElementById('suggTitle').textContent = s.name;
+  document.getElementById('suggContent').innerHTML = `
+    <div class="detail-body" style="padding-top:16px">
+      <div class="detail-cat">${s.origin}</div>
+      <div class="detail-name">${s.name}</div>
+      <div class="detail-time">⏱ ${s.time}</div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:8px">${s.description}</p>
+      <div class="section-title">Ingrédients</div>
+      <ul class="ingredients-list">
+        ${s.ingredients.map(ing => `<li class="ingredient-item"><div class="ing-check" onclick="this.classList.toggle('checked');this.textContent=this.classList.contains('checked')?'✓':''"></div><span>${ing}</span></li>`).join('')}
+      </ul>
+      <div class="section-title">Préparation</div>
+      <ol class="steps-list">
+        ${s.steps.map((step, i) => `<li class="step-item"><span class="step-num">${i+1}</span><span>${step}</span></li>`).join('')}
+      </ol>
+      <button class="btn-primary" style="width:100%;margin-top:20px;margin-bottom:8px" onclick="saveSuggestion()">+ Enregistrer dans mes recettes</button>
+    </div>`;
+  openModal('suggModal');
+}
+
+function saveSuggestion() {
+  const s = currentSuggestion;
+  if (!s) return;
+  const emojis = { 'Plat': '🍛', 'Épices': '🌶️', 'Sauce': '🥫', 'Dessert': '🍰' };
+  recettes.unshift({ id: Date.now(), name: s.name, cat: 'Plat', time: s.time, emoji: '🍽️', photo: null, ingredients: s.ingredients, steps: s.steps });
+  saveData(); closeModal('suggModal'); closeModal('iaModal'); renderGallery();
+  alert('Recette enregistrée !');
+}
+
+// ====== PROMPTS CLAUDE ======
+function copyPromptRecette() {
+  const name = document.getElementById('recipeName').value.trim();
+  const desc = document.getElementById('recipeDesc').value.trim();
+  const cat = document.getElementById('recipeCat').value;
+  const time = document.getElementById('recipeTime').value.trim();
+  const prompt = `Génère une recette de ${cat.toLowerCase()} pour : "${name || desc || '???'}"${time ? `, en moins de ${time}` : ''}. Donne-moi les ingrédients (un par ligne) et les étapes de préparation (une par ligne). Sois précis et pratique.`;
+  navigator.clipboard.writeText(prompt).then(() => alert('Prompt copié ! Colle-le sur claude.ai 🤖'));
+}
+
+function copyPromptFrigo() {
+  const mood = document.getElementById('iaMood').value.trim();
+  const prompt = `J'ai ces ingrédients dans mon frigo : ${iaIngredients.join(', ') || '???'}.${mood ? ` Je veux quelque chose de : ${mood}.` : ''} Temps max : ${iaTime}. Propose-moi 4 plats ou sauces du monde entier que je peux faire. Pour chacun : le nom, l'origine, le temps de préparation, une courte description, les ingrédients et les étapes.`;
+  navigator.clipboard.writeText(prompt).then(() => alert('Prompt copié ! Colle-le sur claude.ai 🤖'));
+}
+
+// ====== MODALS ======
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+renderGallery();
+</script>
+</body>
+</html>
