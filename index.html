@@ -206,6 +206,7 @@
   /* SHARE */
   .share-options { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
   .share-btn { padding: 14px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 12px; }
+  @keyframes fadeOut { 0% { opacity:1; } 70% { opacity:1; } 100% { opacity:0; } }
 </style>
 </head>
 <body>
@@ -265,7 +266,7 @@
       </div>
       <div>
         <label class="form-label">Nom de la recette</label>
-        <input class="form-input" id="recipeName" placeholder="Ex: Poulet yassa...">
+        <input class="form-input" id="recipeName" placeholder="Ex: Poulet yassa..." oninput="checkSaveBtn()">
       </div>
       <div class="form-row">
         <div>
@@ -291,11 +292,11 @@
       <div id="generatedPreview" style="display:none">
         <div>
           <label class="form-label">Ingrédients (un par ligne)</label>
-          <textarea class="form-textarea" id="recipeIngredients"></textarea>
+          <textarea class="form-textarea" id="recipeIngredients" oninput="checkSaveBtn()"></textarea>
         </div>
         <div style="margin-top:14px">
           <label class="form-label">Étapes (une par ligne)</label>
-          <textarea class="form-textarea" id="recipeSteps" style="min-height:150px"></textarea>
+          <textarea class="form-textarea" id="recipeSteps" style="min-height:150px" oninput="checkSaveBtn()"></textarea>
         </div>
       </div>
       <button class="btn-save" id="saveBtn" onclick="saveRecette()" disabled>Enregistrer</button>
@@ -588,11 +589,23 @@ function openEdit(id) {
 function handlePhoto(input) {
   const file = input.files[0];
   if (!file) return;
+  // Réduire la taille de l'image avant de la stocker
   const reader = new FileReader();
   reader.onload = e => {
-    currentPhotoData = e.target.result;
-    const preview = document.getElementById('photoPreview');
-    preview.src = currentPhotoData; preview.style.display = 'block';
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxSize = 800;
+      let w = img.width, h = img.height;
+      if (w > h && w > maxSize) { h = h * maxSize / w; w = maxSize; }
+      else if (h > maxSize) { w = w * maxSize / h; h = maxSize; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      currentPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+      const preview = document.getElementById('photoPreview');
+      preview.src = currentPhotoData; preview.style.display = 'block';
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -604,19 +617,29 @@ async function generateRecette() {
   document.getElementById('aiGenBtn').style.display = 'none';
   document.getElementById('aiLoading').style.display = 'flex';
   try {
-    const res = await fetch("/api/recette", {
-  method: "POST", headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ name, desc, cat: document.getElementById('recipeCat').value, time: document.getElementById('recipeTime').value })
-});
-const json = await res.json();
-if (json.error) throw new Error(json.error);
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: `Génère une recette pour : "${name || desc}". Réponds UNIQUEMENT en JSON:\n{"ingredients":["..."],"steps":["..."],"time":"XX min"}\nMax 8 ingrédients, 6 étapes.` }] })
+    });
+    const data = await res.json();
+    const json = JSON.parse(data.content[0].text.replace(/\`\`\`json|\`\`\`/g, '').trim());
     document.getElementById('recipeIngredients').value = json.ingredients.join('\n');
     document.getElementById('recipeSteps').value = json.steps.join('\n');
     if (json.time && !document.getElementById('recipeTime').value) document.getElementById('recipeTime').value = json.time;
     document.getElementById('generatedPreview').style.display = 'block';
     document.getElementById('saveBtn').disabled = false;
+    // Aussi activer le bouton si le nom est rempli
+    checkSaveBtn();
   } catch(e) { alert('Erreur IA, réessaie.'); }
   finally { document.getElementById('aiGenBtn').style.display = 'flex'; document.getElementById('aiLoading').style.display = 'none'; }
+}
+
+function checkSaveBtn() {
+  const name = document.getElementById('recipeName').value.trim();
+  const ingredients = document.getElementById('recipeIngredients').value.trim();
+  const steps = document.getElementById('recipeSteps').value.trim();
+  const btn = document.getElementById('saveBtn');
+  if (btn) btn.disabled = !(name && ingredients && steps);
 }
 
 function saveRecette() {
@@ -633,7 +656,15 @@ function saveRecette() {
   } else {
     recettes.unshift({ id: Date.now(), name, cat, time, emoji: emojis[cat], photo: currentPhotoData, ingredients, steps });
   }
-  saveData(); closeModal('addModal'); renderGallery();
+  saveData();
+  closeModal('addModal');
+  renderGallery();
+  // Confirmation visuelle
+  const toast = document.createElement('div');
+  toast.textContent = '✅ Recette enregistrée !';
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#e8c547;color:#000;padding:12px 24px;border-radius:100px;font-weight:600;font-size:14px;z-index:9999;animation:fadeOut 2.5s forwards';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
 }
 
 // ====== IA FRIGO ======
