@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Nos Recettes">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.jpg">
+<link rel="icon" type="image/jpeg" sizes="192x192" href="/icon-192.jpg">
 <title>Nos Recettes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
@@ -688,6 +691,21 @@ resetForm();
 renderGrid();   /* affichage immediat depuis le cache */
 icons();
 chargerRecettes();  /* puis rafraichissement depuis la base */
+
+/* ===== PWA =====
+   Le service worker sert uniquement a ouvrir l'app sans reseau. Il est
+   ignore sur file:// et ne s'enregistre qu'en https (donc sur Vercel). */
+if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("/sw.js").catch(function(){});
+  });
+}
+
+/* Raccourcis du manifest : /#add et /#frigo ouvrent directement la bonne vue. */
+(function(){
+  const vue = (location.hash||"").replace("#","");
+  if(vue === "add" || vue === "frigo") showView(vue);
+})();
 </script>
 </body>
 </html>
